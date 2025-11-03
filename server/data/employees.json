@@ -1,0 +1,30 @@
+[
+  {
+    "id": "emp-1",
+    "name": "الموظف 1",
+    "username": "employee1",
+    "password": "123456",
+    "role": "employee"
+  },
+  {
+    "id": "emp-2",
+    "name": "الموظف 2",
+    "username": "employee2",
+    "password": "123456",
+    "role": "employee"
+  },
+  {
+    "id": "emp-3",
+    "name": "الموظف 3",
+    "username": "employee3",
+    "password": "123456",
+    "role": "employee"
+  },
+  {
+    "id": "manager-1",
+    "name": "المدير",
+    "username": "manager",
+    "password": "admin123",
+    "role": "manager"
+  }
+]
