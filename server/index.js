@@ -62,28 +62,23 @@ function buildSummaryRows(reports) {
 
   return Array.from(grouped.values()).map((employeeReports) => {
     const [first] = employeeReports;
-    const productivityValues = employeeReports
-      .map((report) => (typeof report.productivityScore === 'number' ? report.productivityScore : null))
-      .filter((value) => value !== null);
 
-    const productivityAverage =
-      productivityValues.length > 0
-        ? Number(
-            (
-              productivityValues.reduce((total, value) => total + value, 0) /
-              productivityValues.length
-            ).toFixed(2)
-          )
-        : null;
+    const totalVisitors = employeeReports.reduce((sum, r) => sum + (r.visitorsCount || 0), 0);
+    const totalCalls = employeeReports.reduce((sum, r) => sum + (r.callsCount || 0), 0);
+    const totalSocialMedia = employeeReports.reduce((sum, r) => sum + (r.socialMediaCount || 0), 0);
+    const totalEntry = employeeReports.reduce((sum, r) => sum + (r.entryCount || 0), 0);
+    const totalExit = employeeReports.reduce((sum, r) => sum + (r.exitCount || 0), 0);
 
     return {
       employeeId: first.employeeId,
       employeeName: first.employeeName,
       totalShifts: employeeReports.length,
-      productivityAverage,
-      tasks: employeeReports.map((report) => report.tasksCompleted).filter(Boolean),
-      issues: employeeReports.map((report) => report.issues).filter(Boolean),
-      handoverNotes: employeeReports.map((report) => report.handoverNotes).filter(Boolean)
+      totalVisitors,
+      totalCalls,
+      totalSocialMedia,
+      totalEntry,
+      totalExit,
+      needs: employeeReports.map((report) => report.needs).filter(Boolean)
     };
   });
 }
@@ -95,43 +90,59 @@ async function buildWorkbookBuffer({ date, reports, summaryRows }) {
 
   const reportsSheet = workbook.addWorksheet('تقارير الشفتات');
   reportsSheet.columns = [
-    { header: 'التاريخ', key: 'date', width: 15 },
-    { header: 'الموظف', key: 'employeeName', width: 20 },
-    { header: 'الشفت', key: 'shift', width: 12 },
-    { header: 'المهام المنجزة', key: 'tasksCompleted', width: 50 },
-    { header: 'الملاحظات والبلاغات', key: 'issues', width: 50 },
-    { header: 'ملاحظات التسليم', key: 'handoverNotes', width: 50 },
-    { header: 'تقييم الإنتاجية (%)', key: 'productivityScore', width: 22 }
+    { header: 'التاريخ', key: 'date', width: 12 },
+    { header: 'اليوم', key: 'dayName', width: 12 },
+    { header: 'اسم الموظف', key: 'employeeName', width: 18 },
+    { header: 'الشفت', key: 'shift', width: 18 },
+    { header: 'بداية الشفت', key: 'shiftStart', width: 12 },
+    { header: 'نهاية الشفت', key: 'shiftEnd', width: 12 },
+    { header: 'عدد الزوار', key: 'visitorsCount', width: 12 },
+    { header: 'عدد الاتصالات', key: 'callsCount', width: 14 },
+    { header: 'التواصل الاجتماعي', key: 'socialMediaCount', width: 16 },
+    { header: 'عدد الدخول', key: 'entryCount', width: 12 },
+    { header: 'عدد الخروج', key: 'exitCount', width: 12 },
+    { header: 'الاحتياج', key: 'needs', width: 30 }
   ];
 
   reports.forEach((report) => {
     reportsSheet.addRow({
       date: report.date,
+      dayName: report.dayName,
       employeeName: report.employeeName,
       shift: report.shift,
-      tasksCompleted: report.tasksCompleted,
-      issues: report.issues,
-      handoverNotes: report.handoverNotes,
-      productivityScore: report.productivityScore ?? ''
+      shiftStart: report.shiftStart,
+      shiftEnd: report.shiftEnd,
+      visitorsCount: report.visitorsCount ?? 0,
+      callsCount: report.callsCount ?? 0,
+      socialMediaCount: report.socialMediaCount ?? 0,
+      entryCount: report.entryCount ?? 0,
+      exitCount: report.exitCount ?? 0,
+      needs: report.needs ?? ''
     });
   });
 
   const summarySheet = workbook.addWorksheet('ملخص اليوم');
   summarySheet.columns = [
-    { header: 'الموظف', key: 'employeeName', width: 20 },
-    { header: 'عدد الشفتات', key: 'totalShifts', width: 15 },
-    { header: 'متوسط الإنتاجية (%)', key: 'productivityAverage', width: 20 },
-    { header: 'المهام البارزة', key: 'tasks', width: 50 },
-    { header: 'الملاحظات', key: 'notes', width: 50 }
+    { header: 'اسم الموظف', key: 'employeeName', width: 18 },
+    { header: 'عدد الشفتات', key: 'totalShifts', width: 12 },
+    { header: 'إجمالي الزوار', key: 'totalVisitors', width: 14 },
+    { header: 'إجمالي الاتصالات', key: 'totalCalls', width: 16 },
+    { header: 'إجمالي التواصل', key: 'totalSocialMedia', width: 16 },
+    { header: 'إجمالي الدخول', key: 'totalEntry', width: 14 },
+    { header: 'إجمالي الخروج', key: 'totalExit', width: 14 },
+    { header: 'الاحتياجات', key: 'needs', width: 40 }
   ];
 
   summaryRows.forEach((row) => {
     summarySheet.addRow({
       employeeName: row.employeeName,
       totalShifts: row.totalShifts,
-      productivityAverage: row.productivityAverage ?? 'غير متوفر',
-      tasks: row.tasks.join('\n'),
-      notes: [...row.issues, ...row.handoverNotes].join('\n')
+      totalVisitors: row.totalVisitors,
+      totalCalls: row.totalCalls,
+      totalSocialMedia: row.totalSocialMedia,
+      totalEntry: row.totalEntry,
+      totalExit: row.totalExit,
+      needs: row.needs.join(' | ')
     });
   });
 
@@ -332,7 +343,20 @@ app.get('/api/summary', authenticateRequest, async (req, res, next) => {
 
 app.post('/api/reports', authenticateRequest, async (req, res, next) => {
   try {
-    const { shift, date, tasksCompleted, issues, handoverNotes, productivityScore, employeeId } = req.body ?? {};
+    const { 
+      shift, 
+      date, 
+      dayName,
+      shiftStart,
+      shiftEnd,
+      visitorsCount, 
+      callsCount, 
+      socialMediaCount, 
+      needs, 
+      entryCount, 
+      exitCount,
+      employeeId 
+    } = req.body ?? {};
 
     if (!shift || !date) {
       return res.status(400).json({ message: 'التاريخ والشفت مطلوبان.' });
@@ -350,9 +374,6 @@ app.post('/api/reports', authenticateRequest, async (req, res, next) => {
       (report) => report.employeeId === targetEmployeeId && report.shift === shift && report.date === date
     );
 
-    const numericProductivity = typeof productivityScore === 'number' ? productivityScore : Number(productivityScore);
-    const sanitizedProductivity = Number.isFinite(numericProductivity) ? Math.min(Math.max(numericProductivity, 0), 100) : undefined;
-
     const now = new Date().toISOString();
     const newReport = {
       id: existingIndex >= 0 ? allReports[existingIndex].id : uuid(),
@@ -360,10 +381,15 @@ app.post('/api/reports', authenticateRequest, async (req, res, next) => {
       employeeName: targetEmployee.name,
       shift,
       date,
-      tasksCompleted: tasksCompleted ?? '',
-      issues: issues ?? '',
-      handoverNotes: handoverNotes ?? '',
-      productivityScore: sanitizedProductivity,
+      dayName: dayName ?? '',
+      shiftStart: shiftStart ?? '',
+      shiftEnd: shiftEnd ?? '',
+      visitorsCount: Number(visitorsCount) || 0,
+      callsCount: Number(callsCount) || 0,
+      socialMediaCount: Number(socialMediaCount) || 0,
+      needs: needs ?? '',
+      entryCount: Number(entryCount) || 0,
+      exitCount: Number(exitCount) || 0,
       submittedBy: req.user.id,
       updatedAt: now
     };

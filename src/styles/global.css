@@ -151,20 +151,33 @@ button.link {
   color: #475569;
 }
 
+.table-wrapper {
+  overflow-x: auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 800px;
 }
 
 th,
 td {
   text-align: right;
-  padding: 0.75rem;
+  padding: 0.6rem 0.5rem;
   border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+  font-size: 0.9rem;
 }
 
 th {
   background-color: #f1f5f9;
+  font-weight: 700;
+}
+
+td:last-child {
+  white-space: normal;
+  max-width: 200px;
 }
 
 ul {
@@ -200,8 +213,14 @@ ul {
   margin-top: -0.5rem;
 }
 
-@media (min-width: 960px) {
+@media (min-width: 1200px) {
   .grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

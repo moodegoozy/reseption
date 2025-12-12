@@ -59,55 +59,63 @@ export default function SummaryTable({
       <article className="card">
         <header className="sectionHeader">
           <div>
-            <h2>التقارير المدخلة</h2>
+            <h2>تقارير الشفتات</h2>
             <p>التاريخ المحدد: {date}</p>
           </div>
         </header>
-        <table>
-          <thead>
-            <tr>
-              <th>التاريخ</th>
-              <th>الموظف</th>
-              <th>الشفت</th>
-              <th>المهام الرئيسية</th>
-              <th>الملاحظات</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.map((report) => (
-              <tr key={report.id}>
-                <td>{report.date}</td>
-                <td>{report.employeeName}</td>
-                <td>{report.shift}</td>
-                <td>{report.tasksCompleted}</td>
-                <td>
-                  <div className="notes">
-                    {report.issues ? <p>بلاغات: {report.issues}</p> : null}
-                    {report.handoverNotes ? <p>تسليم: {report.handoverNotes}</p> : null}
-                    {typeof report.productivityScore === 'number' ? (
-                      <p>الإنتاجية: {report.productivityScore}%</p>
-                    ) : null}
-                  </div>
-                </td>
-                <td>
-                  {canRemove(report) ? (
-                    <button type="button" className="link" onClick={() => onRemoveReport(report.id)}>
-                      حذف
-                    </button>
-                  ) : null}
-                </td>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>اليوم</th>
+                <th>الموظف</th>
+                <th>الشفت</th>
+                <th>البداية</th>
+                <th>النهاية</th>
+                <th>الزوار</th>
+                <th>الاتصالات</th>
+                <th>التواصل</th>
+                <th>الدخول</th>
+                <th>الخروج</th>
+                <th>الاحتياج</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {reports.map((report) => (
+                <tr key={report.id}>
+                  <td>{report.date}</td>
+                  <td>{report.dayName}</td>
+                  <td>{report.employeeName}</td>
+                  <td>{report.shift}</td>
+                  <td>{report.shiftStart}</td>
+                  <td>{report.shiftEnd}</td>
+                  <td>{report.visitorsCount}</td>
+                  <td>{report.callsCount}</td>
+                  <td>{report.socialMediaCount}</td>
+                  <td>{report.entryCount}</td>
+                  <td>{report.exitCount}</td>
+                  <td>{report.needs || '-'}</td>
+                  <td>
+                    {canRemove(report) ? (
+                      <button type="button" className="link" onClick={() => onRemoveReport(report.id)}>
+                        حذف
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </article>
 
       <article className="card">
         <header className="sectionHeader">
           <div>
             <h2>ملخص اليوم</h2>
-            <p>ملخص حسب الموظف للشفتات المدخلة.</p>
+            <p>إجماليات حسب الموظف</p>
           </div>
           {canTriggerSummary ? (
             <button type="button" className="secondary" onClick={handleSendSummary} disabled={isSending}>
@@ -117,40 +125,44 @@ export default function SummaryTable({
         </header>
         {message ? <p className="success compact">{message}</p> : null}
         {error ? <p className="error compact">{error}</p> : null}
-        <table>
-          <thead>
-            <tr>
-              <th>الموظف</th>
-              <th>عدد الشفتات</th>
-              <th>متوسط الإنتاجية</th>
-              <th>أبرز المهام</th>
-              <th>الملاحظات</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summaryRows.map((row) => (
-              <tr key={row.employeeId}>
-                <td>{row.employeeName}</td>
-                <td>{row.totalShifts}</td>
-                <td>{row.productivityAverage ?? 'غير متوفر'}</td>
-                <td>
-                  <ul>
-                    {row.tasks.map((task, index) => (
-                      <li key={`${row.employeeId}-task-${index}`}>{task}</li>
-                    ))}
-                  </ul>
-                </td>
-                <td>
-                  <ul>
-                    {[...row.issues, ...row.handoverNotes].map((note, index) => (
-                      <li key={`${row.employeeId}-note-${index}`}>{note}</li>
-                    ))}
-                  </ul>
-                </td>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>الموظف</th>
+                <th>الشفتات</th>
+                <th>الزوار</th>
+                <th>الاتصالات</th>
+                <th>التواصل</th>
+                <th>الدخول</th>
+                <th>الخروج</th>
+                <th>الاحتياجات</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {summaryRows.map((row) => (
+                <tr key={row.employeeId}>
+                  <td>{row.employeeName}</td>
+                  <td>{row.totalShifts}</td>
+                  <td>{row.totalVisitors}</td>
+                  <td>{row.totalCalls}</td>
+                  <td>{row.totalSocialMedia}</td>
+                  <td>{row.totalEntry}</td>
+                  <td>{row.totalExit}</td>
+                  <td>
+                    {row.needs.length > 0 ? (
+                      <ul>
+                        {row.needs.map((need, index) => (
+                          <li key={`${row.employeeId}-need-${index}`}>{need}</li>
+                        ))}
+                      </ul>
+                    ) : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </article>
     </section>
   );

@@ -1,15 +1,20 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AuthenticatedUser, EmployeeSummary, ShiftName } from '../types';
-import { normalizeProductivity, shiftOptions } from '../utils/reportUtils';
+import { getArabicDayName, getShiftTimes, shiftOptions } from '../utils/reportUtils';
 
 export interface SubmitShiftReportPayload {
   employeeId: string;
   shift: ShiftName;
   date: string;
-  tasksCompleted: string;
-  issues: string;
-  handoverNotes: string;
-  productivityScore?: number;
+  dayName: string;
+  shiftStart: string;
+  shiftEnd: string;
+  visitorsCount: number;
+  callsCount: number;
+  socialMediaCount: number;
+  needs: string;
+  entryCount: number;
+  exitCount: number;
 }
 
 interface ShiftReportFormProps {
@@ -32,11 +37,13 @@ export default function ShiftReportForm({
   const [employeeId, setEmployeeId] = useState<string>(
     currentUser.role === 'employee' ? currentUser.id : employees[0]?.id ?? ''
   );
-  const [shift, setShift] = useState<ShiftName>('الصباح');
-  const [tasksCompleted, setTasksCompleted] = useState('');
-  const [issues, setIssues] = useState('');
-  const [handoverNotes, setHandoverNotes] = useState('');
-  const [productivity, setProductivity] = useState('');
+  const [shift, setShift] = useState<ShiftName>('الصباحي (9ص - 5م)');
+  const [visitorsCount, setVisitorsCount] = useState('');
+  const [callsCount, setCallsCount] = useState('');
+  const [socialMediaCount, setSocialMediaCount] = useState('');
+  const [needs, setNeeds] = useState('');
+  const [entryCount, setEntryCount] = useState('');
+  const [exitCount, setExitCount] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -51,10 +58,8 @@ export default function ShiftReportForm({
     }
   }, [currentUser, employeeId, employees]);
 
-  const productivityNumber = useMemo(() => {
-    const value = Number(productivity);
-    return Number.isNaN(value) ? undefined : normalizeProductivity(value);
-  }, [productivity]);
+  const dayName = useMemo(() => getArabicDayName(date), [date]);
+  const shiftTimes = useMemo(() => getShiftTimes(shift), [shift]);
 
   const canSelectEmployee = currentUser.role === 'manager';
 
@@ -68,25 +73,27 @@ export default function ShiftReportForm({
       return;
     }
 
-    if (!tasksCompleted.trim()) {
-      setError('الرجاء إدخال المهام المنجزة.');
-      return;
-    }
-
     try {
       await onSubmit({
         employeeId,
         shift,
         date,
-        tasksCompleted,
-        issues,
-        handoverNotes,
-        productivityScore: productivityNumber
+        dayName,
+        shiftStart: shiftTimes.start,
+        shiftEnd: shiftTimes.end,
+        visitorsCount: Number(visitorsCount) || 0,
+        callsCount: Number(callsCount) || 0,
+        socialMediaCount: Number(socialMediaCount) || 0,
+        needs,
+        entryCount: Number(entryCount) || 0,
+        exitCount: Number(exitCount) || 0
       });
-      setTasksCompleted('');
-      setIssues('');
-      setHandoverNotes('');
-      setProductivity('');
+      setVisitorsCount('');
+      setCallsCount('');
+      setSocialMediaCount('');
+      setNeeds('');
+      setEntryCount('');
+      setExitCount('');
       setSuccess('تم حفظ التقرير بنجاح.');
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : 'تعذر حفظ التقرير.');
@@ -95,7 +102,7 @@ export default function ShiftReportForm({
 
   return (
     <form className="card" onSubmit={handleSubmit}>
-      <h2>إدخال تقرير شفت</h2>
+      <h2>تقرير شفت الاستقبال</h2>
       <div className="form-grid">
         {canSelectEmployee ? (
           <label className="field">
@@ -116,7 +123,7 @@ export default function ShiftReportForm({
         )}
 
         <label className="field">
-          <span>تاريخ الشفت</span>
+          <span>التاريخ</span>
           <input
             type="date"
             value={date}
@@ -130,6 +137,11 @@ export default function ShiftReportForm({
           />
         </label>
 
+        <div className="field readOnly">
+          <span>اليوم</span>
+          <strong>{dayName}</strong>
+        </div>
+
         <label className="field">
           <span>الشفت</span>
           <select value={shift} onChange={(event) => setShift(event.target.value as ShiftName)}>
@@ -141,44 +153,83 @@ export default function ShiftReportForm({
           </select>
         </label>
 
+        <div className="field readOnly">
+          <span>بداية الشفت</span>
+          <strong>{shiftTimes.start}</strong>
+        </div>
+
+        <div className="field readOnly">
+          <span>نهاية الشفت</span>
+          <strong>{shiftTimes.end}</strong>
+        </div>
+
         <label className="field">
-          <span>تقييم الإنتاجية (%)</span>
+          <span>عدد الزوار</span>
           <input
             type="number"
             min={0}
-            max={100}
-            value={productivity}
-            onChange={(event) => setProductivity(event.target.value)}
-            placeholder="مثال: 85"
+            value={visitorsCount}
+            onChange={(event) => setVisitorsCount(event.target.value)}
+            placeholder="0"
+            required
+          />
+        </label>
+
+        <label className="field">
+          <span>عدد الاتصالات</span>
+          <input
+            type="number"
+            min={0}
+            value={callsCount}
+            onChange={(event) => setCallsCount(event.target.value)}
+            placeholder="0"
+            required
+          />
+        </label>
+
+        <label className="field">
+          <span>التواصل الاجتماعي</span>
+          <input
+            type="number"
+            min={0}
+            value={socialMediaCount}
+            onChange={(event) => setSocialMediaCount(event.target.value)}
+            placeholder="0"
+            required
+          />
+        </label>
+
+        <label className="field">
+          <span>عدد الدخول</span>
+          <input
+            type="number"
+            min={0}
+            value={entryCount}
+            onChange={(event) => setEntryCount(event.target.value)}
+            placeholder="0"
+            required
+          />
+        </label>
+
+        <label className="field">
+          <span>عدد الخروج</span>
+          <input
+            type="number"
+            min={0}
+            value={exitCount}
+            onChange={(event) => setExitCount(event.target.value)}
+            placeholder="0"
+            required
           />
         </label>
       </div>
 
       <label className="field">
-        <span>المهام المنجزة</span>
+        <span>الاحتياج</span>
         <textarea
-          value={tasksCompleted}
-          onChange={(event) => setTasksCompleted(event.target.value)}
-          placeholder="أدخل أهم المهام التي تمت خلال الشفت"
-          required
-        />
-      </label>
-
-      <label className="field">
-        <span>الملاحظات والبلاغات</span>
-        <textarea
-          value={issues}
-          onChange={(event) => setIssues(event.target.value)}
-          placeholder="أدخل المشاكل أو البلاغات إن وجدت"
-        />
-      </label>
-
-      <label className="field">
-        <span>ملاحظات التسليم</span>
-        <textarea
-          value={handoverNotes}
-          onChange={(event) => setHandoverNotes(event.target.value)}
-          placeholder="ملاحظات تساعد الفريق في الشفت التالي"
+          value={needs}
+          onChange={(event) => setNeeds(event.target.value)}
+          placeholder="أدخل أي احتياجات أو ملاحظات"
         />
       </label>
 
@@ -186,7 +237,7 @@ export default function ShiftReportForm({
       {success ? <p className="success">{success}</p> : null}
 
       <button type="submit" className="primary" disabled={isSubmitting}>
-        {isSubmitting ? 'جاري الحفظ...' : 'حفظ التقرير'}
+        {isSubmitting ? 'جاري الحفظ...' : 'إرسال التقرير'}
       </button>
     </form>
   );

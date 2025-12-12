@@ -1,4 +1,4 @@
-export type ShiftName = 'الصباح' | 'المساء' | 'الليل';
+export type ShiftName = 'الليلي (1ص - 9ص)' | 'الصباحي (9ص - 5م)' | 'المسائي (5م - 1ص)';
 
 export type UserRole = 'employee' | 'manager';
 
@@ -20,10 +20,15 @@ export interface ShiftReport {
   employeeName: string;
   shift: ShiftName;
   date: string;
-  tasksCompleted: string;
-  issues: string;
-  handoverNotes: string;
-  productivityScore?: number;
+  dayName: string;
+  shiftStart: string;
+  shiftEnd: string;
+  visitorsCount: number;
+  callsCount: number;
+  socialMediaCount: number;
+  needs: string;
+  entryCount: number;
+  exitCount: number;
   submittedBy?: string;
   updatedAt?: string;
 }
@@ -32,10 +37,12 @@ export interface DailySummaryRow {
   employeeId: string;
   employeeName: string;
   totalShifts: number;
-  productivityAverage: number | null;
-  tasks: string[];
-  issues: string[];
-  handoverNotes: string[];
+  totalVisitors: number;
+  totalCalls: number;
+  totalSocialMedia: number;
+  totalEntry: number;
+  totalExit: number;
+  needs: string[];
 }
 
 export interface LoginPayload {

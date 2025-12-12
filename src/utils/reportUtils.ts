@@ -1,13 +1,25 @@
 import * as XLSX from 'xlsx';
-import { DailySummaryRow, ShiftReport } from '../types';
+import { DailySummaryRow, ShiftName, ShiftReport } from '../types';
 
-export const shiftOptions = ['الصباح', 'المساء', 'الليل'] as const;
+export const shiftOptions: ShiftName[] = ['الليلي (1ص - 9ص)', 'الصباحي (9ص - 5م)', 'المسائي (5م - 1ص)'];
 
-export function normalizeProductivity(value?: number): number | undefined {
-  if (value === undefined || Number.isNaN(value)) {
-    return undefined;
+export function getShiftTimes(shift: ShiftName): { start: string; end: string } {
+  switch (shift) {
+    case 'الليلي (1ص - 9ص)':
+      return { start: '01:00', end: '09:00' };
+    case 'الصباحي (9ص - 5م)':
+      return { start: '09:00', end: '17:00' };
+    case 'المسائي (5م - 1ص)':
+      return { start: '17:00', end: '01:00' };
+    default:
+      return { start: '', end: '' };
   }
-  return Math.min(Math.max(value, 0), 100);
+}
+
+export function getArabicDayName(dateString: string): string {
+  const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const date = new Date(dateString);
+  return days[date.getDay()];
 }
 
 export function createDailySummary(reports: ShiftReport[]): DailySummaryRow[] {
@@ -21,28 +33,23 @@ export function createDailySummary(reports: ShiftReport[]): DailySummaryRow[] {
 
   return Array.from(byEmployee.entries()).map(([employeeId, employeeReports]) => {
     const { employeeName } = employeeReports[0];
-    const productivityValues = employeeReports
-      .map((report) => report.productivityScore)
-      .filter((value): value is number => typeof value === 'number');
 
-    const productivityAverage =
-      productivityValues.length > 0
-        ? Number(
-            (
-              productivityValues.reduce((total, value) => total + value, 0) /
-              productivityValues.length
-            ).toFixed(2)
-          )
-        : null;
+    const totalVisitors = employeeReports.reduce((sum, r) => sum + (r.visitorsCount || 0), 0);
+    const totalCalls = employeeReports.reduce((sum, r) => sum + (r.callsCount || 0), 0);
+    const totalSocialMedia = employeeReports.reduce((sum, r) => sum + (r.socialMediaCount || 0), 0);
+    const totalEntry = employeeReports.reduce((sum, r) => sum + (r.entryCount || 0), 0);
+    const totalExit = employeeReports.reduce((sum, r) => sum + (r.exitCount || 0), 0);
 
     return {
       employeeId,
       employeeName,
       totalShifts: employeeReports.length,
-      productivityAverage,
-      tasks: employeeReports.map((report) => report.tasksCompleted).filter(Boolean),
-      issues: employeeReports.map((report) => report.issues).filter(Boolean),
-      handoverNotes: employeeReports.map((report) => report.handoverNotes).filter(Boolean)
+      totalVisitors,
+      totalCalls,
+      totalSocialMedia,
+      totalEntry,
+      totalExit,
+      needs: employeeReports.map((report) => report.needs).filter(Boolean)
     };
   });
 }
@@ -56,24 +63,31 @@ export function exportDailySummaryToExcel(
 
   const reportSheet = XLSX.utils.json_to_sheet(
     reports.map((report) => ({
-      التاريخ: report.date,
-      الموظف: report.employeeName,
-      الشفت: report.shift,
-      'المهام المنجزة': report.tasksCompleted,
-      'الملاحظات والبلاغات': report.issues,
-      'ملاحظات التسليم': report.handoverNotes,
-      'تقييم الإنتاجية (%)': report.productivityScore ?? ''
+      'التاريخ': report.date,
+      'اليوم': report.dayName,
+      'اسم الموظف': report.employeeName,
+      'الشفت': report.shift,
+      'بداية الشفت': report.shiftStart,
+      'نهاية الشفت': report.shiftEnd,
+      'عدد الزوار': report.visitorsCount,
+      'عدد الاتصالات': report.callsCount,
+      'التواصل الاجتماعي': report.socialMediaCount,
+      'عدد الدخول': report.entryCount,
+      'عدد الخروج': report.exitCount,
+      'الاحتياج': report.needs
     }))
   );
 
   const summarySheet = XLSX.utils.json_to_sheet(
     summaryRows.map((row) => ({
-      الموظف: row.employeeName,
+      'اسم الموظف': row.employeeName,
       'عدد الشفتات': row.totalShifts,
-      'متوسط الإنتاجية (%)': row.productivityAverage ?? 'غير متوفر',
-      'المهام البارزة': row.tasks.join('\n'),
-      'أهم الملاحظات': row.issues.join('\n'),
-      'ملاحظات التسليم': row.handoverNotes.join('\n')
+      'إجمالي الزوار': row.totalVisitors,
+      'إجمالي الاتصالات': row.totalCalls,
+      'إجمالي التواصل الاجتماعي': row.totalSocialMedia,
+      'إجمالي الدخول': row.totalEntry,
+      'إجمالي الخروج': row.totalExit,
+      'الاحتياجات': row.needs.join(' | ')
     }))
   );
 
