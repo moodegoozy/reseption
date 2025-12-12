@@ -210,18 +210,18 @@ export default function App() {
 
   const headerDescription = useMemo(() => {
     if (!currentUser) {
-      return 'أدخل بيانات الدخول لمتابعة تقارير الشفتات اليومية.';
+      return 'سجّل دخولك لإدارة تقارير الاستقبال اليومية بكل سهولة';
     }
 
     return currentUser.role === 'manager'
-      ? 'تابع جميع تقارير الموظفين، قم بتنزيل الملخص أو إرساله تلقائياً إلى البريد.'
-      : 'قم بإدخال تقرير الشفت الخاص بك، وسيصل الملخص إلى الإدارة تلقائياً في نهاية اليوم.';
+      ? 'تابع جميع تقارير الموظفين وقم بتصدير الملخصات بضغطة زر'
+      : 'أدخل بيانات شفتك اليومية بسرعة وسهولة';
   }, [currentUser]);
 
   return (
     <div className="layout">
       <header>
-        <h1>لوحة متابعة تقارير الشفتات</h1>
+        <h1>نظام تقارير الاستقبال</h1>
         <p>{headerDescription}</p>
         {currentUser ? (
           <div className="userBar">
