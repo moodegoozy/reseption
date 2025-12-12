@@ -242,7 +242,7 @@ export default function App() {
       ) : (
         <main>
           <ShiftReportForm
-            currentUser={currentUser}
+            currentUser={currentUser!}
             employees={employees}
             date={selectedDate}
             onDateChange={(nextDate) => setSelectedDate(nextDate)}
@@ -254,12 +254,12 @@ export default function App() {
           {isLoadingData ? <p className="hint">جاري تحميل بيانات اليوم...</p> : null}
 
           <SummaryTable
-            currentUser={currentUser}
+            currentUser={currentUser!}
             date={selectedDate}
             reports={reports}
             summaryRows={summaryRows}
             onRemoveReport={handleRemoveReport}
-            onSendSummaryEmail={currentUser.role === 'manager' ? handleSendSummaryEmail : undefined}
+            onSendSummaryEmail={currentUser?.role === 'manager' ? async () => { await handleSendSummaryEmail(); } : undefined}
           />
         </main>
       )}
