@@ -8,11 +8,16 @@ import {
   fetchEmployees,
   fetchReports,
   fetchSummary,
-  login,
-  logout,
   sendDailySummary,
   submitReport
 } from './services/api';
+import { 
+  loginWithEmail, 
+  registerWithEmail, 
+  logoutUser, 
+  onAuthChange,
+  getUserProfile 
+} from './services/firebase';
 import { AuthenticatedUser, DailySummaryRow, EmployeeSummary, ShiftReport } from './types';
 import { createDailySummary } from './utils/reportUtils';
 
@@ -25,48 +30,56 @@ export default function App() {
   const [reports, setReports] = useState<ShiftReport[]>([]);
   const [summaryRows, setSummaryRows] = useState<DailySummaryRow[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => today());
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
-  const isAuthenticated = Boolean(token && currentUser);
+  const isAuthenticated = Boolean(currentUser);
+
+  // Listen to Firebase Auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthChange(async (user) => {
+      if (user) {
+        try {
+          const profile = await getUserProfile(user.uid);
+          const idToken = await user.getIdToken();
+          setToken(idToken);
+          setCurrentUser({
+            id: user.uid,
+            name: profile?.name || user.email?.split('@')[0] || 'مستخدم',
+            role: profile?.role || 'employee'
+          });
+        } catch (error) {
+          console.error('Error getting user profile:', error);
+          setToken(null);
+          setCurrentUser(null);
+        }
+      } else {
+        setToken(null);
+        setCurrentUser(null);
+      }
+      setIsAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
-    if (!token || !currentUser) {
+    if (!currentUser) {
       setEmployees([]);
       return;
     }
 
-    let mounted = true;
-
-    const loadEmployees = async () => {
-      try {
-        const list = await fetchEmployees(token);
-        if (!mounted) {
-          return;
-        }
-
-        if (currentUser.role === 'manager') {
-          setEmployees(list);
-        } else {
-          const ownRecord = list.find((employee) => employee.id === currentUser.id);
-          setEmployees(ownRecord ? [ownRecord] : [{ ...currentUser }]);
-        }
-      } catch (error) {
-        if (!mounted) {
-          return;
-        }
-        setEmployees([{ ...currentUser }]);
-      }
-    };
-
-    loadEmployees();
-
-    return () => {
-      mounted = false;
-    };
-  }, [token, currentUser]);
+    // For Firebase Auth, we'll create a simple employee list
+    if (currentUser.role === 'manager') {
+      // Manager sees all - but we need to fetch from somewhere
+      // For now, we'll just show the current user
+      setEmployees([{ id: currentUser.id, name: currentUser.name, role: currentUser.role }]);
+    } else {
+      setEmployees([{ id: currentUser.id, name: currentUser.name, role: currentUser.role }]);
+    }
+  }, [currentUser]);
 
   const loadData = useCallback(async () => {
     if (!token || !currentUser) {
@@ -106,33 +119,35 @@ export default function App() {
     loadData();
   }, [loadData]);
 
-  const handleLogin = async ({ username, password }: { username: string; password: string }) => {
+  const handleLogin = async ({ email, password }: { email: string; password: string }) => {
     setIsAuthLoading(true);
     try {
-      const response = await login(username, password);
-      setToken(response.token);
-      setCurrentUser(response.employee);
+      await loginWithEmail(email, password);
       setSelectedDate(today());
     } catch (error) {
-      setToken(null);
-      setCurrentUser(null);
       throw error instanceof Error ? error : new Error('تعذر تسجيل الدخول.');
     } finally {
       setIsAuthLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    if (!token) {
-      setToken(null);
-      setCurrentUser(null);
-      return;
-    }
-
+  const handleRegister = async ({ email, password, name }: { email: string; password: string; name: string }) => {
+    setIsAuthLoading(true);
     try {
-      await logout(token);
+      await registerWithEmail(email, password, name, 'employee');
+      setSelectedDate(today());
     } catch (error) {
-      // ignore logout errors, session will be cleared locally
+      throw error instanceof Error ? error : new Error('تعذر إنشاء الحساب.');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      // ignore logout errors
     } finally {
       setToken(null);
       setCurrentUser(null);
@@ -237,7 +252,13 @@ export default function App() {
 
       {!isAuthenticated ? (
         <main className="authWrapper">
-          <LoginForm onSubmit={handleLogin} isSubmitting={isAuthLoading} />
+          {isAuthLoading ? (
+            <div className="card auth">
+              <p style={{ textAlign: 'center' }}>جاري التحميل...</p>
+            </div>
+          ) : (
+            <LoginForm onSubmit={handleLogin} onRegister={handleRegister} isSubmitting={isAuthLoading} />
+          )}
         </main>
       ) : (
         <main>

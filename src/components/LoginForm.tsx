@@ -1,52 +1,115 @@
 import { FormEvent, useState } from 'react';
 
 interface LoginFormProps {
-  onSubmit: (credentials: { username: string; password: string }) => Promise<void> | void;
+  onSubmit: (credentials: { email: string; password: string }) => Promise<void> | void;
+  onRegister?: (credentials: { email: string; password: string; name: string }) => Promise<void> | void;
   isSubmitting?: boolean;
 }
 
-export default function LoginForm({ onSubmit, isSubmitting = false }: LoginFormProps) {
-  const [username, setUsername] = useState('');
+export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }: LoginFormProps) {
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
 
-    if (!username || !password) {
-      setError('يرجى إدخال اسم المستخدم وكلمة المرور.');
+    if (!email || !password) {
+      setError('يرجى إدخال البريد الإلكتروني وكلمة المرور.');
+      return;
+    }
+
+    if (isRegisterMode && !name) {
+      setError('يرجى إدخال الاسم.');
       return;
     }
 
     try {
-      await onSubmit({ username, password });
+      if (isRegisterMode && onRegister) {
+        await onRegister({ email, password, name });
+      } else {
+        await onSubmit({ email, password });
+      }
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : 'فشل تسجيل الدخول.');
+      const errorMessage = submissionError instanceof Error ? submissionError.message : 'فشلت العملية.';
+      // Translate Firebase error messages
+      if (errorMessage.includes('auth/invalid-credential') || errorMessage.includes('auth/wrong-password')) {
+        setError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
+      } else if (errorMessage.includes('auth/user-not-found')) {
+        setError('لا يوجد حساب بهذا البريد الإلكتروني.');
+      } else if (errorMessage.includes('auth/email-already-in-use')) {
+        setError('هذا البريد الإلكتروني مستخدم بالفعل.');
+      } else if (errorMessage.includes('auth/weak-password')) {
+        setError('كلمة المرور ضعيفة. يجب أن تكون 6 أحرف على الأقل.');
+      } else if (errorMessage.includes('auth/invalid-email')) {
+        setError('البريد الإلكتروني غير صالح.');
+      } else {
+        setError(errorMessage);
+      }
     }
   };
 
   return (
     <form className="card auth" onSubmit={handleSubmit}>
-      <h2>تسجيل دخول الموظفين</h2>
+      <h2>{isRegisterMode ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}</h2>
+      
+      {isRegisterMode && (
+        <label className="field">
+          <span>الاسم الكامل</span>
+          <input 
+            value={name} 
+            onChange={(event) => setName(event.target.value)} 
+            placeholder="مثال: أحمد محمد" 
+          />
+        </label>
+      )}
+      
       <label className="field">
-        <span>اسم المستخدم</span>
-        <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="مثال: employee1" />
+        <span>البريد الإلكتروني</span>
+        <input 
+          type="email"
+          value={email} 
+          onChange={(event) => setEmail(event.target.value)} 
+          placeholder="example@email.com"
+          dir="ltr"
+        />
       </label>
+      
       <label className="field">
         <span>كلمة المرور</span>
         <input
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="••••••"
+          placeholder="••••••••"
         />
       </label>
+      
       {error ? <p className="error">{error}</p> : null}
+      
       <button type="submit" className="primary" disabled={isSubmitting}>
-        {isSubmitting ? 'جاري التحقق...' : 'تسجيل الدخول'}
+        {isSubmitting ? 'جاري التحقق...' : (isRegisterMode ? 'إنشاء الحساب' : 'تسجيل الدخول')}
       </button>
-      <p className="hint">استخدم الحسابات المحددة في ملف الموظفين أو اطلب من المدير تهيئة الحسابات.</p>
+      
+      {onRegister && (
+        <p className="hint" style={{ textAlign: 'center' }}>
+          {isRegisterMode ? 'لديك حساب؟ ' : 'ليس لديك حساب؟ '}
+          <button 
+            type="button" 
+            className="link" 
+            onClick={() => {
+              setIsRegisterMode(!isRegisterMode);
+              setError(null);
+            }}
+            style={{ color: 'var(--primary)', fontWeight: 700 }}
+          >
+            {isRegisterMode ? 'سجل دخول' : 'أنشئ حساب'}
+          </button>
+        </p>
+      )}
     </form>
   );
 }
