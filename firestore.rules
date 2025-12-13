@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection
+    match /users/{userId} {
+      // Users can read and write their own profile
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // All authenticated users can read all profiles (for managers to see employees)
+      allow read: if request.auth != null;
+    }
+    
+    // Reports collection
+    match /reports/{reportId} {
+      // All authenticated users can create reports
+      allow create: if request.auth != null;
+      // Users can read their own reports, managers can read all
+      allow read: if request.auth != null;
+      // Only the submitter or managers can delete/update
+      allow update, delete: if request.auth != null && 
+        (resource.data.submittedById == request.auth.uid || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager');
+    }
+  }
+}

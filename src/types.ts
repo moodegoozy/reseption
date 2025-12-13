@@ -30,7 +30,10 @@ export interface ShiftReport {
   entryCount: number;
   exitCount: number;
   submittedBy?: string;
+  submittedById?: string;
+  submittedByName?: string;
   updatedAt?: string;
+  createdAt?: string;
 }
 
 export interface DailySummaryRow {

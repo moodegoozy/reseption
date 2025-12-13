@@ -4,6 +4,7 @@ import { getArabicDayName, getShiftTimes, shiftOptions } from '../utils/reportUt
 
 export interface SubmitShiftReportPayload {
   employeeId: string;
+  employeeName: string;
   shift: ShiftName;
   date: string;
   dayName: string;
@@ -73,9 +74,13 @@ export default function ShiftReportForm({
       return;
     }
 
+    const employee = employees.find(e => e.id === employeeId);
+    const employeeName = employee?.name || currentUser.name;
+
     try {
       await onSubmit({
         employeeId,
+        employeeName,
         shift,
         date,
         dayName,

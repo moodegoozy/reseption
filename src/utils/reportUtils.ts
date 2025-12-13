@@ -59,6 +59,11 @@ export function exportDailySummaryToExcel(
   summaryRows: DailySummaryRow[],
   fileName: string
 ): void {
+  const workbook = createExcelWorkbook(reports, summaryRows);
+  XLSX.writeFile(workbook, `${fileName}.xlsx`);
+}
+
+function createExcelWorkbook(reports: ShiftReport[], summaryRows: DailySummaryRow[]) {
   const workbook = XLSX.utils.book_new();
 
   const reportSheet = XLSX.utils.json_to_sheet(
@@ -94,5 +99,16 @@ export function exportDailySummaryToExcel(
   XLSX.utils.book_append_sheet(workbook, reportSheet, 'تقارير الشفتات');
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'ملخص اليوم');
 
-  XLSX.writeFile(workbook, `${fileName}.xlsx`);
+  return workbook;
+}
+
+export function createExcelFile(
+  reports: ShiftReport[],
+  summaryRows: DailySummaryRow[],
+  fileName: string
+): File {
+  const workbook = createExcelWorkbook(reports, summaryRows);
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  return new File([blob], `${fileName}.xlsx`, { type: blob.type });
 }

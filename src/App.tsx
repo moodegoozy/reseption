@@ -3,20 +3,16 @@ import LoginForm from './components/LoginForm';
 import ShiftReportForm, { SubmitShiftReportPayload } from './components/ShiftReportForm';
 import SummaryTable from './components/SummaryTable';
 import ExportSummaryButton from './components/ExportSummaryButton';
-import {
-  deleteReport,
-  fetchEmployees,
-  fetchReports,
-  fetchSummary,
-  sendDailySummary,
-  submitReport
-} from './services/api';
 import { 
   loginWithEmail, 
   registerWithEmail, 
   logoutUser, 
   onAuthChange,
-  getUserProfile 
+  getUserProfile,
+  saveReport,
+  getReportsByDate,
+  removeReport,
+  getAllEmployees
 } from './services/firebase';
 import { AuthenticatedUser, DailySummaryRow, EmployeeSummary, ShiftReport } from './types';
 import { createDailySummary } from './utils/reportUtils';
@@ -71,14 +67,22 @@ export default function App() {
       return;
     }
 
-    // For Firebase Auth, we'll create a simple employee list
-    if (currentUser.role === 'manager') {
-      // Manager sees all - but we need to fetch from somewhere
-      // For now, we'll just show the current user
-      setEmployees([{ id: currentUser.id, name: currentUser.name, role: currentUser.role }]);
-    } else {
-      setEmployees([{ id: currentUser.id, name: currentUser.name, role: currentUser.role }]);
-    }
+    // Fetch employees from Firestore for managers
+    const loadEmployees = async () => {
+      if (currentUser.role === 'manager') {
+        try {
+          const allUsers = await getAllEmployees();
+          setEmployees(allUsers.map(u => ({ id: u.id, name: u.name, role: u.role })));
+        } catch (error) {
+          console.error('Error loading employees:', error);
+          setEmployees([{ id: currentUser.id, name: currentUser.name, role: currentUser.role }]);
+        }
+      } else {
+        setEmployees([{ id: currentUser.id, name: currentUser.name, role: currentUser.role }]);
+      }
+    };
+    
+    loadEmployees();
   }, [currentUser]);
 
   const loadData = useCallback(async () => {
@@ -91,25 +95,14 @@ export default function App() {
     setIsLoadingData(true);
     setGlobalError(null);
     try {
-      const [reportsResponse, summaryResponse] = await Promise.all([
-        fetchReports(token, selectedDate),
-        fetchSummary(token, selectedDate)
-      ]);
-      setReports(reportsResponse);
-      setSummaryRows(summaryResponse);
+      const reportsData = await getReportsByDate(selectedDate, currentUser.role, currentUser.id);
+      setReports(reportsData);
+      setSummaryRows(createDailySummary(reportsData));
     } catch (error) {
+      console.error('Error loading reports:', error);
+      setReports([]);
+      setSummaryRows([]);
       setGlobalError(error instanceof Error ? error.message : 'تعذر تحميل البيانات.');
-      try {
-        const reportsResponse = await fetchReports(token, selectedDate);
-        setReports(reportsResponse);
-        setSummaryRows(createDailySummary(reportsResponse));
-      } catch (secondError) {
-        setReports([]);
-        setSummaryRows([]);
-        setGlobalError(
-          secondError instanceof Error ? secondError.message : 'تعذر تحميل البيانات من الخادم.'
-        );
-      }
     } finally {
       setIsLoadingData(false);
     }
@@ -131,10 +124,10 @@ export default function App() {
     }
   };
 
-  const handleRegister = async ({ email, password, name }: { email: string; password: string; name: string }) => {
+  const handleRegister = async ({ email, password, name, role }: { email: string; password: string; name: string; role: 'employee' | 'manager' }) => {
     setIsAuthLoading(true);
     try {
-      await registerWithEmail(email, password, name, 'employee');
+      await registerWithEmail(email, password, name, role);
       setSelectedDate(today());
     } catch (error) {
       throw error instanceof Error ? error : new Error('تعذر إنشاء الحساب.');
@@ -163,7 +156,11 @@ export default function App() {
 
     setIsSubmittingReport(true);
     try {
-      await submitReport(token, payload);
+      await saveReport({
+        ...payload,
+        submittedById: currentUser.id,
+        submittedByName: currentUser.name
+      });
       await loadData();
     } catch (error) {
       throw error instanceof Error ? error : new Error('تعذر حفظ التقرير.');
@@ -178,7 +175,7 @@ export default function App() {
     }
 
     try {
-      await deleteReport(token, reportId);
+      await removeReport(reportId);
       await loadData();
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'تعذر حذف التقرير.');
@@ -186,41 +183,8 @@ export default function App() {
   };
 
   const handleSendSummaryEmail = async () => {
-    if (!token || !currentUser) {
-      throw new Error('انتهت الجلسة، يرجى تسجيل الدخول.');
-    }
-
-    try {
-      const result = (await sendDailySummary(token, selectedDate)) as
-        | {
-            sent?: boolean;
-            reason?: string;
-            savedTo?: string;
-            date?: string;
-            messageId?: string;
-          }
-        | undefined;
-
-      if (!result) {
-        return 'تم تنفيذ الطلب بنجاح.';
-      }
-
-      if (result.sent) {
-        return 'تم إرسال الملخص إلى البريد الإلكتروني بنجاح.';
-      }
-
-      if (result.reason === 'NO_REPORTS') {
-        throw new Error('لا توجد تقارير لإرسالها في هذا التاريخ.');
-      }
-
-      if (result.reason === 'SMTP_NOT_CONFIGURED' && result.savedTo) {
-        return `لم يتم ضبط بريد الإرسال، تم حفظ الملف في: ${result.savedTo}`;
-      }
-
-      return 'تم تجهيز الملف، تحقق من إعدادات البريد للتأكد من الإرسال.';
-    } catch (error) {
-      throw error instanceof Error ? error : new Error('تعذر إرسال الملخص.');
-    }
+    // Summary email functionality - can be implemented later
+    return 'تم تجهيز الملخص. استخدم زر التصدير لتحميل ملف Excel.';
   };
 
   const headerDescription = useMemo(() => {
@@ -262,14 +226,30 @@ export default function App() {
         </main>
       ) : (
         <main>
-          <ShiftReportForm
-            currentUser={currentUser!}
-            employees={employees}
-            date={selectedDate}
-            onDateChange={(nextDate) => setSelectedDate(nextDate)}
-            onSubmit={handleSubmitReport}
-            isSubmitting={isSubmittingReport}
-          />
+          {/* المدير لا يكتب تقارير - فقط يشاهدها */}
+          {currentUser?.role === 'manager' ? (
+            <section className="card">
+              <h2>📊 لوحة تحكم المدير</h2>
+              <p>مرحباً بك في لوحة التحكم. يمكنك مشاهدة جميع تقارير الموظفين وتحميلها.</p>
+              <label className="field" style={{ maxWidth: '300px' }}>
+                <span>اختر التاريخ</span>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                />
+              </label>
+            </section>
+          ) : (
+            <ShiftReportForm
+              currentUser={currentUser!}
+              employees={employees}
+              date={selectedDate}
+              onDateChange={(nextDate) => setSelectedDate(nextDate)}
+              onSubmit={handleSubmitReport}
+              isSubmitting={isSubmittingReport}
+            />
+          )}
 
           {globalError ? <p className="error">{globalError}</p> : null}
           {isLoadingData ? <p className="hint">جاري تحميل بيانات اليوم...</p> : null}

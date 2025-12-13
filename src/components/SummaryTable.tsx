@@ -59,8 +59,8 @@ export default function SummaryTable({
       <article className="card">
         <header className="sectionHeader">
           <div>
-            <h2>تقارير الشفتات</h2>
-            <p>التاريخ المحدد: {date}</p>
+            <h2>تقارير الشفتات {currentUser.role === 'manager' ? '(جميع الموظفين)' : ''}</h2>
+            <p>التاريخ المحدد: {date} | عدد التقارير: {reports.length}</p>
           </div>
         </header>
         <div className="table-wrapper">
@@ -79,6 +79,7 @@ export default function SummaryTable({
                 <th>الدخول</th>
                 <th>الخروج</th>
                 <th>الاحتياج</th>
+                {currentUser.role === 'manager' && <th>أُرسل بواسطة</th>}
                 <th></th>
               </tr>
             </thead>
@@ -97,6 +98,7 @@ export default function SummaryTable({
                   <td>{report.entryCount}</td>
                   <td>{report.exitCount}</td>
                   <td>{report.needs || '-'}</td>
+                  {currentUser.role === 'manager' && <td>{report.submittedByName || '-'}</td>}
                   <td>
                     {canRemove(report) ? (
                       <button type="button" className="link" onClick={() => onRemoveReport(report.id)}>

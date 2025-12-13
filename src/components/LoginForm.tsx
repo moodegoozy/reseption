@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 
 interface LoginFormProps {
   onSubmit: (credentials: { email: string; password: string }) => Promise<void> | void;
-  onRegister?: (credentials: { email: string; password: string; name: string }) => Promise<void> | void;
+  onRegister?: (credentials: { email: string; password: string; name: string; role: 'employee' | 'manager' }) => Promise<void> | void;
   isSubmitting?: boolean;
 }
 
@@ -11,6 +11,7 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState<'employee' | 'manager'>('employee');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -29,7 +30,7 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
 
     try {
       if (isRegisterMode && onRegister) {
-        await onRegister({ email, password, name });
+        await onRegister({ email, password, name, role });
       } else {
         await onSubmit({ email, password });
       }
@@ -57,14 +58,24 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
       <h2>{isRegisterMode ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}</h2>
       
       {isRegisterMode && (
-        <label className="field">
-          <span>الاسم الكامل</span>
-          <input 
-            value={name} 
-            onChange={(event) => setName(event.target.value)} 
-            placeholder="مثال: أحمد محمد" 
-          />
-        </label>
+        <>
+          <label className="field">
+            <span>الاسم الكامل</span>
+            <input 
+              value={name} 
+              onChange={(event) => setName(event.target.value)} 
+              placeholder="مثال: أحمد محمد" 
+            />
+          </label>
+          
+          <label className="field">
+            <span>نوع الحساب</span>
+            <select value={role} onChange={(event) => setRole(event.target.value as 'employee' | 'manager')}>
+              <option value="employee">موظف استقبال</option>
+              <option value="manager">مدير (Admin)</option>
+            </select>
+          </label>
+        </>
       )}
       
       <label className="field">
