@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 
 interface LoginFormProps {
   onSubmit: (credentials: { email: string; password: string }) => Promise<void> | void;
-  onRegister?: (credentials: { email: string; password: string; name: string; role: 'employee' | 'manager' }) => Promise<void> | void;
+  onRegister?: (credentials: { email: string; password: string; name: string }) => Promise<void> | void;
   isSubmitting?: boolean;
 }
 
@@ -11,7 +11,6 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'employee' | 'manager'>('employee');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -30,13 +29,12 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
 
     try {
       if (isRegisterMode && onRegister) {
-        await onRegister({ email, password, name, role });
+        await onRegister({ email, password, name });
       } else {
         await onSubmit({ email, password });
       }
     } catch (submissionError) {
       const errorMessage = submissionError instanceof Error ? submissionError.message : 'فشلت العملية.';
-      // Translate Firebase error messages
       if (errorMessage.includes('auth/invalid-credential') || errorMessage.includes('auth/wrong-password')) {
         setError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
       } else if (errorMessage.includes('auth/user-not-found')) {
@@ -55,27 +53,17 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
 
   return (
     <form className="card auth" onSubmit={handleSubmit}>
-      <h2>{isRegisterMode ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}</h2>
+      <h2>🔐 {isRegisterMode ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}</h2>
       
       {isRegisterMode && (
-        <>
-          <label className="field">
-            <span>الاسم الكامل</span>
-            <input 
-              value={name} 
-              onChange={(event) => setName(event.target.value)} 
-              placeholder="مثال: أحمد محمد" 
-            />
-          </label>
-          
-          <label className="field">
-            <span>نوع الحساب</span>
-            <select value={role} onChange={(event) => setRole(event.target.value as 'employee' | 'manager')}>
-              <option value="employee">موظف استقبال</option>
-              <option value="manager">مدير (Admin)</option>
-            </select>
-          </label>
-        </>
+        <label className="field">
+          <span>الاسم الكامل</span>
+          <input 
+            value={name} 
+            onChange={(e) => setName(e.target.value)} 
+            placeholder="مثال: أحمد محمد" 
+          />
+        </label>
       )}
       
       <label className="field">
@@ -83,7 +71,7 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
         <input 
           type="email"
           value={email} 
-          onChange={(event) => setEmail(event.target.value)} 
+          onChange={(e) => setEmail(e.target.value)} 
           placeholder="example@email.com"
           dir="ltr"
         />
@@ -94,19 +82,19 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
         <input
           type="password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
         />
       </label>
       
-      {error ? <p className="error">{error}</p> : null}
+      {error && <p className="error">{error}</p>}
       
       <button type="submit" className="primary" disabled={isSubmitting}>
-        {isSubmitting ? 'جاري التحقق...' : (isRegisterMode ? 'إنشاء الحساب' : 'تسجيل الدخول')}
+        {isSubmitting ? '⏳ جاري...' : (isRegisterMode ? '📝 إنشاء الحساب' : '🚀 دخول')}
       </button>
       
       {onRegister && (
-        <p className="hint" style={{ textAlign: 'center' }}>
+        <p className="hint" style={{ textAlign: 'center', marginTop: '1rem' }}>
           {isRegisterMode ? 'لديك حساب؟ ' : 'ليس لديك حساب؟ '}
           <button 
             type="button" 

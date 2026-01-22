@@ -1,17 +1,8 @@
 export type ShiftName = 'الليلي (1ص - 9ص)' | 'الصباحي (9ص - 5م)' | 'المسائي (5م - 1ص)';
 
-export type UserRole = 'employee' | 'manager';
-
 export interface AuthenticatedUser {
   id: string;
   name: string;
-  role: UserRole;
-}
-
-export interface EmployeeSummary {
-  id: string;
-  name: string;
-  role: UserRole;
 }
 
 export interface ShiftReport {
@@ -21,39 +12,30 @@ export interface ShiftReport {
   shift: ShiftName;
   date: string;
   dayName: string;
-  shiftStart: string;
-  shiftEnd: string;
   visitorsCount: number;
   callsCount: number;
   socialMediaCount: number;
+  bookingSource: string;
+  bookingType: string;
   needs: string;
   entryCount: number;
   exitCount: number;
-  submittedBy?: string;
+  notes: string;
+  dailyRevenue: number;
+  totalRevenue: number;
   submittedById?: string;
   submittedByName?: string;
-  updatedAt?: string;
   createdAt?: string;
 }
 
-export interface DailySummaryRow {
-  employeeId: string;
-  employeeName: string;
-  totalShifts: number;
+export interface DailySummary {
+  date: string;
+  dayName: string;
   totalVisitors: number;
   totalCalls: number;
   totalSocialMedia: number;
   totalEntry: number;
   totalExit: number;
-  needs: string[];
-}
-
-export interface LoginPayload {
-  username: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  token: string;
-  employee: AuthenticatedUser;
+  totalDailyRevenue: number;
+  reports: ShiftReport[];
 }

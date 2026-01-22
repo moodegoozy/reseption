@@ -71,14 +71,13 @@ export async function loginWithEmail(email: string, password: string) {
   };
 }
 
-export async function registerWithEmail(email: string, password: string, name: string, role: 'employee' | 'manager' = 'employee') {
+export async function registerWithEmail(email: string, password: string, name: string) {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   
   // Try to save user profile to Firestore
   try {
     await setDoc(doc(db, 'users', userCredential.user.uid), {
       name,
-      role,
       email,
       createdAt: new Date().toISOString()
     });
@@ -88,7 +87,7 @@ export async function registerWithEmail(email: string, password: string, name: s
   
   return {
     user: userCredential.user,
-    profile: { name, role }
+    profile: { name }
   };
 }
 
@@ -103,7 +102,7 @@ export function onAuthChange(callback: (user: User | null) => void) {
 export async function getUserProfile(uid: string) {
   const userDoc = await getDoc(doc(db, 'users', uid));
   if (userDoc.exists()) {
-    return userDoc.data() as { name: string; role: 'employee' | 'manager'; email: string };
+    return userDoc.data() as { name: string; email: string };
   }
   return null;
 }
@@ -117,17 +116,10 @@ export async function saveReport(report: Omit<ShiftReport, 'id'>): Promise<Shift
   return { ...report, id: docRef.id };
 }
 
-export async function getReportsByDate(date: string, userRole: 'employee' | 'manager', userId: string): Promise<ShiftReport[]> {
+export async function getReportsByDate(date: string, userId: string): Promise<ShiftReport[]> {
   const reportsRef = collection(db, 'reports');
-  let q;
-  
-  if (userRole === 'manager') {
-    // Manager sees all reports for the date - simple query without orderBy to avoid index issues
-    q = query(reportsRef, where('date', '==', date));
-  } else {
-    // Employee sees only their own reports - simple query
-    q = query(reportsRef, where('date', '==', date), where('submittedById', '==', userId));
-  }
+  // الموظف يرى تقاريره فقط
+  const q = query(reportsRef, where('date', '==', date), where('submittedById', '==', userId));
   
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({
@@ -138,13 +130,4 @@ export async function getReportsByDate(date: string, userRole: 'employee' | 'man
 
 export async function removeReport(reportId: string): Promise<void> {
   await deleteDoc(doc(db, 'reports', reportId));
-}
-
-export async function getAllEmployees(): Promise<{ id: string; name: string; role: 'employee' | 'manager'; email: string }[]> {
-  const usersRef = collection(db, 'users');
-  const snapshot = await getDocs(usersRef);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as { id: string; name: string; role: 'employee' | 'manager'; email: string }[];
 }
