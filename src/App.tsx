@@ -10,22 +10,39 @@ import {
   getUserProfile,
   saveReport,
   getReportsByDate,
+  getReportsByDateRange,
   removeReport
 } from './services/firebase';
 import { AuthenticatedUser, ShiftReport } from './types';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+type TabType = 'today' | 'history';
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
   const [reports, setReports] = useState<ShiftReport[]>([]);
+  const [historyReports, setHistoryReports] = useState<ShiftReport[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => today());
+  const [activeTab, setActiveTab] = useState<TabType>('today');
+  const [startDate, setStartDate] = useState<string>(() => today());
+  const [endDate, setEndDate] = useState<string>(() => today());
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   const isAuthenticated = Boolean(currentUser);
+
+  // تصفية التقارير حسب الموظف الحالي
+  const filteredReports = currentUser 
+    ? reports.filter(r => r.employeeName === currentUser.name)
+    : [];
+  
+  const filteredHistoryReports = currentUser 
+    ? historyReports.filter(r => r.employeeName === currentUser.name)
+    : [];
 
   // Listen to Firebase Auth state changes
   useEffect(() => {
@@ -60,7 +77,9 @@ export default function App() {
     setIsLoadingData(true);
     setGlobalError(null);
     try {
-      const reportsData = await getReportsByDate(selectedDate, currentUser.id);
+      // تحميل تقرير اليوم فقط
+      const todayDate = today();
+      const reportsData = await getReportsByDate(todayDate, currentUser.id);
       setReports(reportsData);
     } catch (error) {
       console.error('Error loading reports:', error);
@@ -69,7 +88,28 @@ export default function App() {
     } finally {
       setIsLoadingData(false);
     }
-  }, [currentUser, selectedDate]);
+  }, [currentUser]);
+
+  // تحميل سجل التقارير
+  const loadHistoryReports = useCallback(async () => {
+    if (!currentUser) {
+      setHistoryReports([]);
+      return;
+    }
+
+    setIsLoadingHistory(true);
+    setGlobalError(null);
+    try {
+      const reportsData = await getReportsByDateRange(startDate, endDate, currentUser.id);
+      setHistoryReports(reportsData);
+    } catch (error) {
+      console.error('Error loading history:', error);
+      setHistoryReports([]);
+      setGlobalError(error instanceof Error ? error.message : 'تعذر تحميل السجل.');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [currentUser, startDate, endDate]);
 
   useEffect(() => {
     loadData();
@@ -134,15 +174,16 @@ export default function App() {
     }
   };
 
-  // حذف التقرير
-  const handleRemoveReport = async (reportId: string) => {
-    if (!currentUser) return;
-
+  // حذف تقرير من السجل
+  const handleDeleteReport = async (reportId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا التقرير؟')) return;
+    
     try {
       await removeReport(reportId);
-      await loadData();
+      setHistoryReports(prev => prev.filter(r => r.id !== reportId));
     } catch (error) {
-      setGlobalError(error instanceof Error ? error.message : 'تعذر حذف التقرير.');
+      console.error('Error deleting report:', error);
+      setGlobalError('تعذر حذف التقرير.');
     }
   };
 
@@ -173,22 +214,109 @@ export default function App() {
         </main>
       ) : (
         <main>
-          <ShiftReportForm
-            currentUser={currentUser!}
-            date={selectedDate}
-            onDateChange={(nextDate) => setSelectedDate(nextDate)}
-            onSubmit={handleSubmitReport}
-            isSubmitting={isSubmittingReport}
-          />
+          {/* التبويبات */}
+          <div className="tabs" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('today')}
+              style={{
+                padding: '0.8rem 1.5rem',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                background: activeTab === 'today' ? '#3498db' : '#e0e0e0',
+                color: activeTab === 'today' ? 'white' : '#333'
+              }}
+            >
+              📝 تقرير اليوم
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('history')}
+              style={{
+                padding: '0.8rem 1.5rem',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                background: activeTab === 'history' ? '#3498db' : '#e0e0e0',
+                color: activeTab === 'history' ? 'white' : '#333'
+              }}
+            >
+              📋 سجل التقارير
+            </button>
+          </div>
 
-          {globalError && <p className="error">{globalError}</p>}
-          {isLoadingData && <p className="hint">⏳ جاري تحميل التقارير...</p>}
+          {activeTab === 'today' ? (
+            <>
+              <ShiftReportForm
+                currentUser={currentUser!}
+                date={selectedDate}
+                onDateChange={(nextDate) => setSelectedDate(nextDate)}
+                onSubmit={handleSubmitReport}
+                isSubmitting={isSubmittingReport}
+              />
 
-          <ReportTable
-            reports={reports}
-            date={selectedDate}
-            onRemoveReport={handleRemoveReport}
-          />
+              {globalError && <p className="error">{globalError}</p>}
+              {isLoadingData && <p className="hint">⏳ جاري تحميل التقارير...</p>}
+
+              <ReportTable
+                reports={filteredReports}
+                date={today()}
+              />
+            </>
+          ) : (
+            <>
+              {/* سجل التقارير */}
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <h2>📋 سجل التقارير</h2>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '1rem' }}>
+                  <label className="field" style={{ flex: 1, minWidth: '150px' }}>
+                    <span>من تاريخ</span>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </label>
+                  <label className="field" style={{ flex: 1, minWidth: '150px' }}>
+                    <span>إلى تاريخ</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={loadHistoryReports}
+                    disabled={isLoadingHistory}
+                    style={{
+                      padding: '0.8rem 1.5rem',
+                      background: '#27ae60',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      marginTop: '1.5rem'
+                    }}
+                  >
+                    {isLoadingHistory ? '⏳ جاري البحث...' : '🔍 عرض التقارير'}
+                  </button>
+                </div>
+              </div>
+
+              {globalError && <p className="error">{globalError}</p>}
+
+              <ReportTable
+                reports={filteredHistoryReports}
+                date={`${startDate} - ${endDate}`}
+                onDelete={handleDeleteReport}
+              />
+            </>
+          )}
         </main>
       )}
     </div>

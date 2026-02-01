@@ -128,6 +128,26 @@ export async function getReportsByDate(date: string, userId: string): Promise<Sh
   })) as ShiftReport[];
 }
 
+export async function getReportsByDateRange(startDate: string, endDate: string, userId: string): Promise<ShiftReport[]> {
+  const reportsRef = collection(db, 'reports');
+  // جلب جميع تقارير المستخدم ثم تصفيتها محلياً لتجنب مشاكل الفهرسة
+  const q = query(
+    reportsRef, 
+    where('submittedById', '==', userId)
+  );
+  
+  const snapshot = await getDocs(q);
+  const allReports = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  })) as ShiftReport[];
+  
+  // تصفية حسب التاريخ محلياً وترتيب تنازلي
+  return allReports
+    .filter(r => r.date >= startDate && r.date <= endDate)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
 export async function removeReport(reportId: string): Promise<void> {
   await deleteDoc(doc(db, 'reports', reportId));
 }

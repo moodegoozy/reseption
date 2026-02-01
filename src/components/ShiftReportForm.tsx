@@ -18,6 +18,7 @@ export interface SubmitShiftReportPayload {
   exitCount: number;
   notes: string;
   dailyRevenue: number;
+  dailyRevenueDetails: string;
   totalRevenue: number;
 }
 
@@ -36,8 +37,6 @@ export default function ShiftReportForm({
   onSubmit,
   isSubmitting = false
 }: ShiftReportFormProps) {
-  const employeeOptions = ['تغريد', 'ريناد', 'أصالة', 'عيسى'];
-  const [selectedEmployee, setSelectedEmployee] = useState(employeeOptions[0]);
   const [shift, setShift] = useState<ShiftName>('الصباحي (9ص - 5م)');
   const [visitorsCount, setVisitorsCount] = useState('');
   const [callsCount, setCallsCount] = useState('');
@@ -77,7 +76,7 @@ export default function ShiftReportForm({
     try {
       await onSubmit({
         employeeId: currentUser.id,
-        employeeName: selectedEmployee,
+        employeeName: currentUser.name,
         shift,
         date,
         dayName,
@@ -91,6 +90,7 @@ export default function ShiftReportForm({
         exitCount: Number(exitCount) || 0,
         notes,
         dailyRevenue: calculatedRevenue,
+        dailyRevenueDetails: dailyRevenue,
         totalRevenue: calculatedRevenue
       });
       // مسح الحقول بعد الإرسال
@@ -115,14 +115,10 @@ export default function ShiftReportForm({
       <h2>📝 تقرير الشفت</h2>
       
       <div className="form-grid">
-        <label className="field">
+        <div className="field readOnly">
           <span>اسم الموظف</span>
-          <select value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)}>
-            {employeeOptions.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </label>
+          <strong>{currentUser.name}</strong>
+        </div>
 
         <label className="field">
           <span>الشفت</span>

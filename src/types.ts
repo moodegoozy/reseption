@@ -22,6 +22,7 @@ export interface ShiftReport {
   exitCount: number;
   notes: string;
   dailyRevenue: number;
+  dailyRevenueDetails: string;
   totalRevenue: number;
   submittedById?: string;
   submittedByName?: string;

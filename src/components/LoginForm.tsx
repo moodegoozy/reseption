@@ -10,6 +10,7 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -79,12 +80,32 @@ export default function LoginForm({ onSubmit, onRegister, isSubmitting = false }
       
       <label className="field">
         <span>كلمة المرور</span>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••"
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            style={{ paddingLeft: '40px' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{
+              position: 'absolute',
+              left: '8px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '18px',
+              padding: '4px'
+            }}
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
+        </div>
       </label>
       
       {error && <p className="error">{error}</p>}

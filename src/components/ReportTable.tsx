@@ -5,10 +5,10 @@ import { getArabicDayName } from '../utils/reportUtils';
 interface ReportTableProps {
   reports: ShiftReport[];
   date: string;
-  onRemoveReport: (id: string) => void;
+  onDelete?: (reportId: string) => void;
 }
 
-export default function ReportTable({ reports, date, onRemoveReport }: ReportTableProps) {
+export default function ReportTable({ reports, date, onDelete }: ReportTableProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,7 +36,8 @@ export default function ReportTable({ reports, date, onRemoveReport }: ReportTab
     const width = 1100;
     const rowHeight = 50;
     const headerHeight = 160;
-    const footerHeight = 180;
+    const revenueDetailsHeight = reports.filter(r => r.dailyRevenueDetails && r.dailyRevenueDetails.includes('+')).length > 0 ? 80 : 0;
+    const footerHeight = 180 + revenueDetailsHeight;
     const height = headerHeight + (reports.length * rowHeight) + footerHeight + 100;
     
     canvas.width = width;
@@ -193,6 +194,34 @@ export default function ReportTable({ reports, date, onRemoveReport }: ReportTab
       }
     }
 
+    // قسم تفاصيل الإيراد
+    const reportsWithDetails = reports.filter(r => r.dailyRevenueDetails && r.dailyRevenueDetails.includes('+'));
+    let revenueDetailsEndY = notesY + (allNeeds.length > 0 || allNotes.length > 0 ? 60 : 0);
+    
+    if (reportsWithDetails.length > 0) {
+      const revenueY = revenueDetailsEndY + 10;
+      
+      // خلفية قسم تفاصيل الإيراد
+      ctx.fillStyle = 'rgba(0, 200, 83, 0.15)';
+      ctx.fillRect(40, revenueY, width - 80, 60);
+      
+      // عنوان
+      ctx.fillStyle = '#00c853';
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('💵 تفاصيل الإيراد', width / 2, revenueY + 18);
+      
+      // تفاصيل كل موظف
+      ctx.font = '13px Arial';
+      ctx.textAlign = 'right';
+      const detailsText = reportsWithDetails.map(r => 
+        `${r.employeeName}: ${r.dailyRevenueDetails} = ${r.dailyRevenue}`
+      ).join('  |  ');
+      
+      ctx.fillText(detailsText, width - 55, revenueY + 42);
+      revenueDetailsEndY = revenueY + 65;
+    }
+
     // التذييل
     ctx.fillStyle = '#ffd700';
     ctx.font = '13px Arial';
@@ -312,7 +341,7 @@ export default function ReportTable({ reports, date, onRemoveReport }: ReportTab
               <th>الخروج</th>
               <th>الإيراد</th>
               <th>الإجمالي</th>
-              <th></th>
+              {onDelete && <th>إجراءات</th>}
             </tr>
           </thead>
           <tbody>
@@ -330,16 +359,25 @@ export default function ReportTable({ reports, date, onRemoveReport }: ReportTab
                 <td>{report.exitCount}</td>
                 <td>{report.dailyRevenue}</td>
                 <td>{report.totalRevenue}</td>
-                <td>
-                  <button 
-                    type="button" 
-                    className="link" 
-                    onClick={() => onRemoveReport(report.id)}
-                    style={{ color: '#e74c3c' }}
-                  >
-                    حذف
-                  </button>
-                </td>
+                {onDelete && (
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(report.id)}
+                      style={{
+                        background: '#e74c3c',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        padding: '0.3rem 0.8rem',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      🗑️ حذف
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -357,11 +395,56 @@ export default function ReportTable({ reports, date, onRemoveReport }: ReportTab
               <td>{totals.exit}</td>
               <td>{totals.revenue}</td>
               <td>{totals.total}</td>
-              <td></td>
+              {onDelete && <td>-</td>}
             </tr>
           </tfoot>
         </table>
       </div>
+
+      {/* شريط تفاصيل الإيراد */}
+      {reports.some(r => r.dailyRevenueDetails) && (
+        <div style={{ 
+          background: '#f8f9fa', 
+          border: '2px solid #ffd700', 
+          borderRadius: '10px', 
+          padding: '1rem', 
+          marginTop: '1rem' 
+        }}>
+          <h3 style={{ margin: '0 0 0.5rem 0', color: '#333' }}>💰 تفاصيل الإيراد</h3>
+          {reports.map((report, index) => (
+            report.dailyRevenueDetails && (
+              <div key={report.id} style={{ 
+                padding: '0.5rem', 
+                background: index % 2 === 0 ? '#fff' : '#f0f0f0',
+                borderRadius: '5px',
+                marginBottom: '0.3rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem'
+              }}>
+                <span style={{ fontWeight: 'bold', color: '#3498db' }}>
+                  {report.employeeName} ({report.shift.split(' ')[0]}):
+                </span>
+                <span style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '14px' }}>
+                  {report.dailyRevenueDetails} = <strong>{report.dailyRevenue}</strong>
+                </span>
+              </div>
+            )
+          ))}
+          <div style={{ 
+            marginTop: '0.5rem', 
+            paddingTop: '0.5rem', 
+            borderTop: '2px solid #ffd700',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            fontSize: '18px'
+          }}>
+            📊 المجموع الكلي: {totals.revenue}
+          </div>
+        </div>
+      )}
 
       {/* أزرار المشاركة */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center', marginTop: '1.5rem' }}>
